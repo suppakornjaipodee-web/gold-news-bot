@@ -1,0 +1,41 @@
+name: Gold news alert
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"      # ทุก 5 นาที (GitHub อาจดีเลย์ได้บ้างตอนคนใช้เยอะ)
+  workflow_dispatch:            # กดรันเองได้จากแท็บ Actions
+
+concurrency:
+  group: gold-news
+  cancel-in-progress: false
+
+jobs:
+  check-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # จำว่าข่าวไหนส่งไปแล้ว (เก็บ seen.json ข้ามรอบ)
+      - name: Restore seen list
+        uses: actions/cache/restore@v4
+        with:
+          path: seen.json
+          key: seen-${{ github.run_id }}
+          restore-keys: seen-
+
+      - name: Check news and notify
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python gold_news_bot.py
+
+      - name: Save seen list
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: seen.json
+          key: seen-${{ github.run_id }}
